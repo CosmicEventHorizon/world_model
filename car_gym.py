@@ -5,8 +5,10 @@ from sampling.CarActions import CarActions as ca
 import shutil
 import os
 
+NUMBER_OF_SAMPLES = 10000
 
-def main_program(requested_no_samples: int):
+
+def collectSamples(requested_no_samples: int):
     if os.path.isdir("data"):
         print("Data already exists!")
         return
@@ -60,4 +62,4 @@ def saveFile(filename: str, observations: np.ndarray, actions: np.ndarray):
 
 
 if __name__ == "__main__":
-    main_program(10000)
+    collectSamples(NUMBER_OF_SAMPLES)
