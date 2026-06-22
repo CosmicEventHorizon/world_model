@@ -2,7 +2,6 @@ import gymnasium as gym
 from gymnasium.wrappers import ResizeObservation
 import numpy as np
 from sampling.CarActions import CarActions as ca
-import cv2
 
 def main_program():
     env = gym.make("CarRacing-v3", render_mode="human", continuous=True)
