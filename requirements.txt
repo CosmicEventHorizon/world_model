@@ -1,0 +1,7 @@
+numpy
+gymnasium
+torch
+torchvision
+swig
+gymnasium[box2d]
+gymnasium[other]
