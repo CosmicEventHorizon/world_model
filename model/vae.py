@@ -16,7 +16,8 @@ class Encoder(nn.Module):
             nn.ReLU(),
         )
         self.fully_connected_mean = nn.Sequential(
-            nn.Linear(1024, 2048), nn.Linear(2048, 1024)
+            nn.Linear(1024, 2048),
+            nn.Linear(2048, 1024),
         )
 
         self.fully_connected_variance = nn.Sequential(
@@ -24,11 +25,11 @@ class Encoder(nn.Module):
         )
 
     def forward(self, x):
-        x = self.conv(x)
-        x = torch.flatten(x)
-        z_mean = self.fully_connected_mean(x)
-        z_variance = self.fully_connected_variance(x)
-        return (z_mean, z_variance)
+        x_conv = self.conv(x)
+        x_conv = torch.flatten(x_conv)
+        z_mean = self.fully_connected_mean(x_conv)
+        z_logvar = self.fully_connected_variance(x_conv)
+        return (z_mean, z_logvar)
 
 
 class Decoder(nn.Module):
@@ -60,15 +61,8 @@ class VAE(nn.Module):
         self.encoder = Encoder()
         self.decoder = Decoder()
 
-    def train(self, x):
-        (z_mean, z_variance) = self.encoder(x)
-        z_sample = torch.normal(z_mean, z_variance * torch.eye(1024, 1))
-        x_hat = self.decoder(z_sample)
-        kl_loss = nn.KLDivLoss()
-        loss = (
-            torch.sub(x, x_hat).norm + kl_loss(z_sample, torch.normal(torch.zeros()))
-        ).sum()
-        loss.backward()
-        optim = torch.optim.SGD(self.parameters(), lr=1e-2, momentum=0.9)
-        optim.step()
-        torch.save(self.state_dict(), "model.bin")
+    def forward(self, x):
+        (z_mean, z_logvar) = self.encoder(x)
+        z_sample = torch.normal(z_mean, torch.exp(0.5 * z_logvar))
+        x_hat = self.decoder(z_sample.flatten().view(1024, 1, 1))
+        return (x_hat, z_mean, z_logvar)
