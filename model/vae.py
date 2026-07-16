@@ -17,11 +17,12 @@ class Encoder(nn.Module):
         )
         self.fully_connected_mean = nn.Sequential(
             nn.Linear(1024, 2048),
+            nn.ReLU(),
             nn.Linear(2048, 1024),
         )
 
         self.fully_connected_variance = nn.Sequential(
-            nn.Linear(1024, 2048), nn.Linear(2048, 1024)
+            nn.Linear(1024, 2048), nn.ReLU(), nn.Linear(2048, 1024)
         )
 
     def forward(self, x):
@@ -49,6 +50,7 @@ class Decoder(nn.Module):
             ),
             nn.ReLU(),
             nn.ConvTranspose2d(in_channels=32, out_channels=3, kernel_size=6, stride=2),
+            nn.Sigmoid(),
         )
 
     def forward(self, x):
