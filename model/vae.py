@@ -63,6 +63,6 @@ class VAE(nn.Module):
 
     def forward(self, x):
         (z_mean, z_logvar) = self.encoder(x)
-        z_sample = torch.normal(z_mean, torch.exp(0.5 * z_logvar))
-        x_hat = self.decoder(z_sample.flatten().view(1024, 1, 1))
+        z_sample = z_mean + torch.exp(0.5 * z_logvar) * torch.randn_like(z_mean)
+        x_hat = self.decoder(z_sample.view(1, 1024, 1, 1))
         return (x_hat, z_mean, z_logvar)

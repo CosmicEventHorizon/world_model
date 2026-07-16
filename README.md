@@ -10,4 +10,4 @@ uv venv --python 3.13 .venv
 
 python -m ensurepip --upgrade
 
-pip install -r requirements.txt
+python -m pip install -r requirements.txt

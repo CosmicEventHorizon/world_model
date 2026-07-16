@@ -4,7 +4,7 @@ import numpy as np
 from sampling.CarActions import CarActions as ca
 import os
 
-NUMBER_OF_SAMPLES = 10000
+NUMBER_OF_SAMPLES = 100000
 
 
 def collectSamples(requested_no_samples: int):
