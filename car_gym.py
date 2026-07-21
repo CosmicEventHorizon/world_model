@@ -1,5 +1,5 @@
 import gymnasium as gym
-from gymnasium.wrappers import ResizeObservation
+from gymnasium.wrappers import ResizeObservation, TransformObservation
 import numpy as np
 from sampling.CarActions import CarActions as ca
 import os
@@ -13,6 +13,7 @@ def collectSamples(requested_no_samples: int):
         return
     os.makedirs("data")
     env = gym.make("CarRacing-v3", render_mode="rgb_array", continuous=True)
+    env = TransformObservation(env, lambda obs: obs[:80, 0:, 0:], env.observation_space)
     env = ResizeObservation(env, (64, 64))
     actions, no_samples = ca.generate(requested_no_samples)
     actions_counter = 0
