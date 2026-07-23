@@ -80,3 +80,7 @@ class VAE(nn.Module):
 
     def preview_decoder(self, z_mean):
         return self.decoder(z_mean)
+
+    def encode(self, x):
+        (z_mean, z_logvar) = self.encoder(x)
+        return z_mean

@@ -1,7 +1,7 @@
 import gymnasium as gym
 from gymnasium.wrappers import ResizeObservation, TransformObservation
 import numpy as np
-from sampling.CarActions import CarActions as ca
+from CarActions import CarActions as ca
 import os
 
 NUMBER_OF_SAMPLES = 100000
