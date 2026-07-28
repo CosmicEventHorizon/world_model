@@ -11,3 +11,9 @@ uv venv --python 3.13 .venv
 python -m ensurepip --upgrade
 
 python -m pip install -r requirements.txt
+
+python -m sampling.sample
+
+python -m training.vae_train
+
+python -m training.controller_train
