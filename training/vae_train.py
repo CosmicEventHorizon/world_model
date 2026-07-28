@@ -35,8 +35,8 @@ if __name__ == "__main__":
     NO_EPOCH = 10
     device = torch.device("cuda")
     vae = VAE().to(device)
-    if os.path.exists("model.bin"):
-        vae.load_state_dict(torch.load("model.bin", map_location=device))
+    if os.path.exists("vae_model.bin"):
+        vae.load_state_dict(torch.load("vae_model.bin", map_location=device))
     else:
         optim = torch.optim.Adam(vae.parameters(), lr=1e-4)
         print("Started training...")
