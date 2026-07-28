@@ -3,7 +3,13 @@ import torch.nn as nn
 import numpy as np
 import os
 from PIL import Image
-from ..model.vae import VAE
+from model.vae import VAE
+
+CURRENT_DIRECTORY = os.path.dirname(os.path.abspath(__file__))
+
+
+def current_directory_path(filename):
+    return os.path.join(CURRENT_DIRECTORY, filename)
 
 
 def kl_loss_fn(z_mean, z_logvar):
@@ -24,7 +30,7 @@ def l2_norm_loss_fn(x, x_hat):
 
 
 def hwc_to_chw(x):
-    return x.permute(2, 0, 1).unsqueeze(0)
+    return torch.as_tensor(x).permute(2, 0, 1).unsqueeze(0).float() / 255.0
 
 
 def chw_to_hwc(x):
@@ -35,8 +41,10 @@ if __name__ == "__main__":
     NO_EPOCH = 10
     device = torch.device("cuda")
     vae = VAE().to(device)
-    if os.path.exists("vae_model.bin"):
-        vae.load_state_dict(torch.load("vae_model.bin", map_location=device))
+    if os.path.exists(current_directory_path("vae_model.bin")):
+        vae.load_state_dict(
+            torch.load(current_directory_path("vae_model.bin"), map_location=device)
+        )
     else:
         optim = torch.optim.Adam(vae.parameters(), lr=1e-4)
         print("Started training...")
@@ -44,7 +52,7 @@ if __name__ == "__main__":
             for data_index in np.random.permutation(range(132)):
                 saved_file = np.load(f"data/data{data_index}.npz")
                 f = saved_file["x"]
-                x_all = torch.from_numpy(f).float() / 255.0
+                x_all = torch.from_numpy(f)
                 l2_loss_accum = 0.0
                 kl_loss_accum = 0.0
                 loss_accum = 0.0
@@ -67,10 +75,10 @@ if __name__ == "__main__":
                 print(
                     f"Current iteration: EPOCH {epoch}, data {data_index} with average:\n L2 loss: {l2_loss_accum} \n KL loss: {kl_loss_accum} \n Total loss: {loss_accum}"
                 )
-                torch.save(vae.state_dict(), "vae_model.bin")
+                torch.save(vae.state_dict(), current_directory_path("vae_model.bin"))
 
     saved_file = np.load("data/data133.npz")
-    x_all = torch.from_numpy(saved_file["x"]).float() / 255.0
+    x_all = torch.from_numpy(saved_file["x"])
     x = hwc_to_chw(x_all[100]).to(device)
     x_hat, z_mean, z_logvar = vae.forward(x, False)
     original = (chw_to_hwc(x) * 255).to(torch.uint8).cpu().numpy()
