@@ -22,16 +22,17 @@ def drive_n_times(n, mean, vae, c):
     negative_rewards = []
     noises = []
     for sample in range(n):
+        rollout_seed = np.random.randint(0, 2**31)
         noise = torch.randn_like(ut.parameters_to_vector(c.parameters()))
         noises.append(noise)
         positive_sampled_c_parameters = mean + PARAMETER_SD * noise
         ut.vector_to_parameters(positive_sampled_c_parameters, c.parameters())
-        positive_reward = start_driving(vae, c)
+        positive_reward = start_driving(vae, c, seed=rollout_seed)
         positive_rewards.append(positive_reward)
 
         negative_sampled_c_parameters = mean - PARAMETER_SD * noise
         ut.vector_to_parameters(negative_sampled_c_parameters, c.parameters())
-        negative_reward = start_driving(vae, c)
+        negative_reward = start_driving(vae, c, seed=rollout_seed)
         negative_rewards.append(negative_reward)
 
         print(
@@ -45,9 +46,9 @@ def drive_n_times(n, mean, vae, c):
     return mean, average_reward
 
 
-def start_driving(vae, c, render_mode="rgb_array"):
+def start_driving(vae, c, render_mode="rgb_array", seed=None):
     env = load_gym(render_mode)
-    observation, info = env.reset()
+    observation, info = env.reset(seed=seed)
     episode_over = False
     reward_accum = 0
     device = next(c.parameters()).device
@@ -148,7 +149,7 @@ if __name__ == "__main__":
     mean = ut.parameters_to_vector(c.parameters()).clone()
 
     print("Started training...")
-    max_reward = float("-inf")
+    max_reward = start_driving(vae, c)
     for epoch in range(EPOCH):
         mean, average_reward = drive_n_times(NO_PARAMETERS_SAMPLES, mean, vae, c)
 
