@@ -1,5 +1,5 @@
 import numpy as np
-from sampling.ActionsDistribution import ActionsDistribution
+from samplers.ActionsDistribution import ActionsDistribution
 
 
 class CarActions:
