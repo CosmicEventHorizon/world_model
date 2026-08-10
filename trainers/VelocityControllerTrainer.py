@@ -101,7 +101,7 @@ class VelocityControllerTrainer:
 
     @staticmethod
     def generate_action(z, velocity, c):
-        z_with_velocity = torch.cat((z, velocity), dim=0)
+        z_with_velocity = torch.cat((z, velocity))
         steer, accelerate, brake = c.forward(z_with_velocity)
         return np.array(
             [
