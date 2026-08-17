@@ -95,7 +95,7 @@ class MemoryTrainer:
                     )
                     loss_accum += loss
                     h_t = h_next
-                    z_t = z_next_mean_hat
+                    z_t = z_next_mean
                 loss_accum.backward()
                 optim.step()
                 print(
