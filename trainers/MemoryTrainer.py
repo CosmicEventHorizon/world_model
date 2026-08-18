@@ -9,6 +9,8 @@ from models.Memory import Memory
 
 class MemoryTrainer:
 
+    device = torch.device("cuda")
+
     @staticmethod
     def current_directory_path(filename):
         return os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
@@ -63,39 +65,56 @@ class MemoryTrainer:
         return (x_all, a_all)
 
     @classmethod
+    def start_episode(cls, memory, vae, data_index):
+        x_all, a_all = cls.load_samples(data_index)
+        l2_loss_accum = 0.0
+        kl_loss_accum = 0.0
+        loss_accum = 0.0
+        no_images = x_all.shape[0]
+        x = cls.hwc_to_chw(x_all[0]).to(cls.device)
+        h_t = torch.as_tensor(np.zeros(shape=(128))).float().to(cls.device)
+        _, z_t, _ = vae.forward(x, False)
+        for image_index in range(no_images - 1):
+            a_t = torch.as_tensor(a_all[image_index]).float().to(cls.device)
+            h_next, z_next_mean_hat, z_next_logvar_hat = memory.forward(h_t, z_t, a_t)
+            x = cls.hwc_to_chw(x_all[image_index + 1]).to(cls.device)
+            _, z_next_mean, z_next_logvar = vae.forward(x, False)
+            loss = cls.kl_loss_fn(
+                z_next_mean, z_next_logvar, z_next_mean_hat, z_next_logvar_hat
+            )
+            loss_accum += loss
+            h_t = h_next
+            z_t = z_next_mean
+        return loss_accum, no_images
+
+    @classmethod
     def train(cls, NO_EPOCHS):
-        device = torch.device("cuda")
-        memory = Memory().to(device)
-        vae = VAE().to(device)
+        memory = Memory().to(cls.device)
+        vae = VAE().to(cls.device)
         vae.load_state_dict(
-            torch.load(cls.current_directory_path("vae_model.bin"), map_location=device)
+            torch.load(
+                cls.current_directory_path("vae_model.bin"), map_location=cls.device
+            )
         )
-        optim = torch.optim.Adam(memory.parameters(), lr=1e-4)
+        if os.path.exists(cls.current_directory_path("m_model.bin")):
+            print("Started preview...")
+            data_index = 144
+            memory.load_state_dict(
+                torch.load(
+                    cls.current_directory_path("m_model.bin"), map_location=cls.device
+                )
+            )
+            loss_accum, no_images = cls.start_episode(memory, vae, data_index)
+            print(
+                f"Preview for data {data_index} with average:\n  KL loss: {loss_accum / (no_images-1)} \n"
+            )
+            return
         print("Started training...")
+        optim = torch.optim.Adam(memory.parameters(), lr=1e-4)
         for epoch in range(NO_EPOCHS):
             for data_index in np.random.permutation(range(132)):
                 optim.zero_grad()
-                x_all, a_all = cls.load_samples(data_index)
-                l2_loss_accum = 0.0
-                kl_loss_accum = 0.0
-                loss_accum = 0.0
-                no_images = x_all.shape[0]
-                x = cls.hwc_to_chw(x_all[0]).to(device)
-                h_t = torch.as_tensor(np.zeros(shape=(128))).float().to(device)
-                _, z_t, _ = vae.forward(x, False)
-                for image_index in range(no_images - 1):
-                    a_t = torch.as_tensor(a_all[image_index]).float().to(device)
-                    h_next, z_next_mean_hat, z_next_logvar_hat = memory.forward(
-                        h_t, z_t, a_t
-                    )
-                    x = cls.hwc_to_chw(x_all[image_index + 1]).to(device)
-                    _, z_next_mean, z_next_logvar = vae.forward(x, False)
-                    loss = cls.kl_loss_fn(
-                        z_next_mean, z_next_logvar, z_next_mean_hat, z_next_logvar_hat
-                    )
-                    loss_accum += loss
-                    h_t = h_next
-                    z_t = z_next_mean
+                loss_accum, no_images = cls.start_episode(memory, vae, data_index)
                 loss_accum.backward()
                 optim.step()
                 print(
