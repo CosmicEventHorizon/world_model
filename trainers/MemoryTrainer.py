@@ -98,7 +98,7 @@ class MemoryTrainer:
         )
         if os.path.exists(cls.current_directory_path("m_model.bin")):
             print("Started preview...")
-            data_index = 144
+            data_index = 150
             memory.load_state_dict(
                 torch.load(
                     cls.current_directory_path("m_model.bin"), map_location=cls.device

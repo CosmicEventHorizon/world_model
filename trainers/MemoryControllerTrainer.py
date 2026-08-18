@@ -20,7 +20,7 @@ class MemoryControllerTrainer:
 
     @classmethod
     def drive_n_times(cls, n, mean, vae, memory, c):
-        LEARNING_RATE = 0.005
+        LEARNING_RATE = 0.001
         PARAMETER_SD = 0.05
         positive_rewards = []
         negative_rewards = []
@@ -135,7 +135,7 @@ class MemoryControllerTrainer:
 
     @classmethod
     def train(cls, NO_EPOCHS):
-        NO_PARAMETERS_SAMPLES = 16
+        NO_PARAMETERS_SAMPLES = 512
         vae = cls.load_vae()
         memory = cls.load_memory()
         c = MemoryController().to(cls.device)
