@@ -1,3 +1,7 @@
+'''
+SLOW and Doesn't train well, use the selection evolution strategy trainer
+'''
+
 import torch
 import torch.nn as nn
 import torch.nn.utils as ut
@@ -20,38 +24,34 @@ class MemoryControllerTrainer:
 
     @classmethod
     def drive_n_times(cls, n, mean, vae, memory, c):
-        PARAMETER_SD = 0.2
-        K = 16
-        rewards = []
+        LEARNING_RATE = 0.0005
+        PARAMETER_SD = 0.05
+        positive_rewards = []
+        negative_rewards = []
         noises = []
-        rollout_seed = np.random.randint(0, 2**31)
-
-        noises.append(torch.zeros_like(mean))
-        ut.vector_to_parameters(mean, c.parameters())
-        zero_noise_reward = cls.start_driving(vae, memory, c, seed=rollout_seed)
-        rewards.append(zero_noise_reward)
-
         for sample in range(n):
+            rollout_seed = np.random.randint(0, 2**31)
             noise = torch.randn_like(ut.parameters_to_vector(c.parameters()))
             noises.append(noise)
             positive_sampled_c_parameters = mean + PARAMETER_SD * noise
             ut.vector_to_parameters(positive_sampled_c_parameters, c.parameters())
             positive_reward = cls.start_driving(vae, memory, c, seed=rollout_seed)
-            rewards.append(positive_reward)
+            positive_rewards.append(positive_reward)
 
-            noises.append(-1 * noise)
             negative_sampled_c_parameters = mean - PARAMETER_SD * noise
             ut.vector_to_parameters(negative_sampled_c_parameters, c.parameters())
             negative_reward = cls.start_driving(vae, memory, c, seed=rollout_seed)
-            rewards.append(negative_reward)
+            negative_rewards.append(negative_reward)
 
             print(
-                f"\nDrove {sample+1}/{n} times: \nZero Noise Reward: {zero_noise_reward} \nPositive Noise Reward: {positive_reward} \nNegative Noise Reward: {negative_reward}\n"
+                f"Drove {sample+1}/{n} times. Positive Reward: {positive_reward}. Negative Reward: {negative_reward}"
             )
 
-        update = cls.top_k_update(rewards, noises, K)
-        mean = mean + PARAMETER_SD * update
-        return mean
+        update = cls.calculate_update(positive_rewards, negative_rewards, noises)
+        mean = mean + (LEARNING_RATE / (PARAMETER_SD * n)) * update
+        rewards = positive_rewards + negative_rewards
+        average_reward = sum(rewards) / len(rewards)
+        return mean, average_reward
 
     @classmethod
     def start_driving(cls, vae, memory, c, render_mode="rgb_array", seed=None):
@@ -75,8 +75,7 @@ class MemoryControllerTrainer:
 
     @classmethod
     def preview_model(cls, vae, memory, c):
-        reward = cls.start_driving(vae, memory, c, "human")
-        print("Rollout rewards is: " + str(reward))
+        cls.start_driving(vae, memory, c, "human")
 
     @classmethod
     def load_vae(cls):
@@ -129,35 +128,18 @@ class MemoryControllerTrainer:
             dtype=np.float32,
         )
 
-    @classmethod
-    def top_k_update(cls, rewards, noises, k):
-        rewards_np = np.array(rewards)
-        minimum = rewards_np.min()
-        rewards_np = rewards_np - minimum + 1e-5
-        top_indices = np.argsort(rewards_np)[-k:]
-        top_rewards = rewards_np[top_indices]
-        print("Selected the following rewards: ", end="")
-        for item in top_rewards:
-            print(item + minimum - 1e-5, end=" ")
-        print()
-        top_rewards_norm = cls.normalize(top_rewards)
-        update = torch.zeros_like(noises[0])
-        reward_index = 0
-        for noise_index in top_indices:
-            update += noises[noise_index] * top_rewards_norm[reward_index]
-            reward_index += 1
-        return update
-
     @staticmethod
-    def normalize(li):
-        sum = li.sum()
-        for i in range(len(li)):
-            li[i] = li[i] / sum
-        return li
+    def calculate_update(positive_rewards, negative_rewards, noises):
+        length = len(positive_rewards)
+        sum = 0
+        for i in range(length):
+            reward_difference = positive_rewards[i] - negative_rewards[i]
+            sum += reward_difference * noises[i]
+        return sum
 
     @classmethod
     def train(cls, NO_EPOCHS):
-        NO_PARAMETERS_SAMPLES = 128
+        NO_PARAMETERS_SAMPLES = 64
         vae = cls.load_vae()
         memory = cls.load_memory()
         c = MemoryController().to(cls.device)
@@ -185,12 +167,14 @@ class MemoryControllerTrainer:
         mean = ut.parameters_to_vector(c.parameters()).clone()
 
         print("Started training...")
-        max_reward = cls.start_driving(vae, memory, c, seed=30)
+        max_reward = cls.start_driving(vae, memory, c)
         for epoch in range(NO_EPOCHS):
-            mean = cls.drive_n_times(NO_PARAMETERS_SAMPLES, mean, vae, memory, c)
+            mean, average_reward = cls.drive_n_times(
+                NO_PARAMETERS_SAMPLES, mean, vae, memory, c
+            )
 
             ut.vector_to_parameters(mean, c.parameters())
-            mean_reward = cls.start_driving(vae, memory, c, seed=30)
+            mean_reward = cls.start_driving(vae, memory, c)
 
             if mean_reward > max_reward:
                 max_reward = mean_reward
@@ -198,6 +182,6 @@ class MemoryControllerTrainer:
 
             print("**************************************************************\n")
             print(
-                f"EPOCH: {epoch+1}/{NO_EPOCHS}. Reward of previous EPOCH's model: {mean_reward}. Reward of the saved model: {max_reward}"
+                f"EPOCH: {epoch+1}/{NO_EPOCHS}. Average Reward: {average_reward}. Mean Reward: {mean_reward}. Maximum Reward: {max_reward}"
             )
             print("\n**************************************************************")
